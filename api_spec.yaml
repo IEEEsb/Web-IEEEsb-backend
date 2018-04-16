@@ -1,0 +1,264 @@
+# TODO: Add pagination in GET endpoints
+# TODO: Define the authentication methods
+openapi: 3.0.1
+info:
+  title: IEEEsb API
+  description: ETSIT-UPM IEEE student branch internal API.
+  version: 2.0.0
+  license:
+    name: MIT
+  contact:
+    url: ieeesb.es
+    email: info@ieeesb.es
+servers:
+  - url: ieeesb.es/api
+tags:
+  - name: files
+    description:
+      Media and other resources (profile and product thumbnails, news'
+      pictures, etc.) used in the branch's website
+  - name: inventory
+    description:
+      Items and servicies provided by the club that can be purchased or
+      borrowed
+  - name: news
+    description:
+      Articles regarding the branch's activity that are shown in the website
+  - name: transactions
+    description:
+      All the actions that can be performed with the items in the
+      inventory (purchasing, borrowing, returning, etc.)
+  - name: users
+    description:
+      Personal information and balance management for the club's registered
+      members
+paths:
+  /files:
+    post:
+      tags:
+        - files
+      operationId: newFile
+      summary: Add a new file to the server's media store
+      description:
+        Once the file has been uploaded to the server, the user making the
+        request will be set as the file's `owner`
+      requestBody:
+        required: true
+        description:
+          The body in `multipart/form-data` format, containing both the file
+          being uploaded and the user roles that will be allowed to fetch it
+        content:
+          multipart/form-data:
+            schema:
+              properties:
+                file:
+                  type: string
+                  format: binary
+                allowedRoles:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          description: Success. The resulting file object in the server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+        '400':
+          description: Bad request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      # TODO: Add ability to filter the files
+      tags:
+        - files
+      operationId: listFiles
+      summary: Get a list of all the files the user has access to
+      description:
+        Even if other files are registered in the API, this endpoint will only
+        show those ones that can be fetched by the user making the query
+      responses:
+        '200':
+          description: Success. An array listing all the matching files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/File'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /files/{id}:
+    delete:
+      tags:
+        - files
+      operationId: deleteFile
+      responses:
+        '200':
+          description: Success. The specified file has been deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+        '404':
+          description:
+            Resource not found. There is no file with such ID. This error may
+            also occur if a DELETE request has been issued for a file the user
+            doesn\'t have write access to (a 403 isn\'t returned to avoid
+            leaking whether the file exists or not)
+  /inventory:
+    post:
+      tags:
+        - inventory
+      operationId: newInventoryItem
+      summary: Add a new product to the inventory
+      responses:
+        '200':
+          description:
+            Success. The resulting inventory item object in the server
+    get:
+      tags:
+        - inventory
+      operationId: listInventory
+      summary: Get a list of all the items in the inventory
+      responses:
+        '200':
+          description:
+            Success. An array listing all the items in the matching items in
+            the inventory
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /inventory/{id}:
+    get:
+      tags:
+        - inventory
+      operationId: getInventoryItem
+      summary: Show an item\'s properties
+      responses:
+        '200':
+          description: Success. The full inventory item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description:
+            Resource not found. There is no item in the inventory with such ID
+    put:
+      tags:
+        - inventory
+      operationId: modifyInventoryItem
+      summary: Edit an item in the inventory
+      requestBody:
+        description: The fields in the item that should be modified
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryItem'
+      responses:
+        '200':
+          description: Success. The new inventory item object in the server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags:
+        - inventory
+      operationId: deleteInventoryItem
+      summary: Remove an item from the inventory
+      responses:
+        '200':
+          description: Success. The old inventory item object in the server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  responses:
+    Unauthorized:
+      description:
+        Unauthorized. A valid authentication method must be used to query the
+        endpoint
+    Forbidden:
+      description:
+        Forbidden. This user doesn't have enough privileges to make
+        such request
+  schemas:
+    InventoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Barcode or inventory number that identifies the item
+        name:
+          type: string
+          description: Common name that helps the user recognize the item
+        icon:
+          type: string
+          format: url
+          description: URL where the product\'s icon can be found
+        amount:
+          type: integer
+          format: int32
+          minimum: 0
+          description:
+            How many units of the item are available in the inventory. This
+            field won\'t be present in items that don\'t need to be refilled
+            (e.g. services)
+        price:
+          type: number
+          format: float
+          minimum: 0
+          description:
+            Unitary price for this item. This field won\'t exist if the item
+            isn\'t for sale
+        type:
+          type: string
+          enum:
+            - consumable
+            - service
+            - lendable
+      required:
+        - id
+        - name
+        - icon
+        - type
+    File:
+      type: object
+      properties:
+        name:
+          type: string
+        owner:
+          type: string
+        allowedRoles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+    Role:
+      type: string
+      enum:
+        - admin
+        - ieee
+        - user

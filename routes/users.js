@@ -1,29 +1,13 @@
-﻿const express = require('express'),
-    authController = require('../controllers/authController.js'),
-    userController = require('../controllers/userController.js'),
-    userAccountController = require('../controllers/userAccountController.js'),
-    multer = require('multer'),
-    upload = multer({ dest: './uploaded/' });
+const { Router } = require('express');
 
-let router = express.Router();
+const router = Router();
 
-router.route('/restorepassword').post(userAccountController.restoreUserPassword);
-router.route('/register').post(upload.fields([{ name: "image" }]), userAccountController.regUser);
-router.route('/login').post(userAccountController.login);
-router.route('/logout').post(userAccountController.logout);
-router.route('/update').post(upload.fields([{ name: "image" }]), userAccountController.updateProfile);
+router.route('/users/')
+	.get(usersController.getUsers)
+	.post(usersController.createUser);
+router.route('/users/:id')
+	.get(usersController.getUsers)
+	.put(usersController.modifyUser)
+	.delete(usersController.deleteUser);
 
-router.use(authController.auth);
-
-router.route('/').get(userController.getCurrentUser);
-router.route('/user/:user').get(userController.getUser);
-router.route('/changepassword').post(userAccountController.changePassword);
-
-router.use(authController.authRole('admin'));
-
-router.route('/addmoney').post(userAccountController.addMoney);
-router.route('/all').get(userController.getUsers);
-router.route('/toieee/:id').post(userAccountController.toIEEE);
-
-
-module.exports = router;
+export default router;
